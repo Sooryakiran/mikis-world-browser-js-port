@@ -10,6 +10,9 @@ coins, birds, secret rooms, boss battle, story sequences and bonus game.
 OTT melodies are extracted unchanged. No Java plugin, Java runtime, emulator,
 external CDN or game upload is needed to play.
 
+For the architecture and a reusable workflow for porting other J2ME games, see
+[the detailed porting guide](detailed.md).
+
 ## Build and run
 
 Building requires a JDK 17+ and network access to download the pinned Gradle,
@@ -48,11 +51,38 @@ npm run test:browser
 These tests start and stop their own server on port 4174.
 
 The Gradle wrapper is included; a separate Gradle installation is unnecessary.
-Build output persists in `public/generated` and `public/original`. For
-authorized static deployment, publish those two directories alongside
-`index.html`, `style.css`, `app.js`, `browser-platform.js`, `ott.js`,
-`licence.txt`, and the third-party notices/licenses. URLs assume hosting at `/`.
-Public hosting must use HTTPS for browser resource-checksum verification.
+Build output persists in `public/generated` and `public/original`.
+
+## Package a static website
+
+```sh
+npm run package
+```
+
+This builds the original game and creates a ready-to-upload `dist/` directory.
+It includes the HTML, CSS, browser JavaScript, compiled game in `generated/`,
+original resources in `original/`, and required licenses/notices. The original
+JAR, Java sources, Node server, tests and development dependencies are not included.
+Each successful package replaces the previous `dist/`, removing stale files;
+do not store hand-maintained files there. A failed build or missing required input
+does not replace the previous package.
+
+Preview the existing package locally:
+
+```sh
+npm run preview
+```
+
+Open <http://127.0.0.1:4175>. Preview serves only `dist/`; it does not rebuild,
+watch files, or fall back to development files. Run `npm run package` again to
+include source changes. If no package exists, preview exits with instructions.
+Use `PORT=4176 npm run preview` to choose another port.
+
+For authorized static deployment, upload **the contents of `dist/`** to your
+site's root. No Node.js or Java server is needed in production. URLs assume
+hosting at `/`; subdirectory hosting needs URL adjustments. Public hosting must
+use HTTPS for browser resource-checksum verification. Open the deployed site
+through HTTP(S), not directly via `file://`.
 
 ## Original controls
 
