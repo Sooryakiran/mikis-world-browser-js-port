@@ -1,0 +1,17 @@
+{
+  "name": "mikis-world-web",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch server.mjs",
+    "start": "node server.mjs",
+    "build": "./gradlew --no-daemon --console=plain generateJavaScript",
+    "test": "node --test original.test.js",
+    "test:browser": "playwright test",
+    "check": "node --check app.js && node --check browser-platform.js && node --check ott.js && node --check server.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}

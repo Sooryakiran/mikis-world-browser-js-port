@@ -1,0 +1,29 @@
+Miki's World browser port: third-party software
+
+TeaVM 0.16.0
+https://teavm.org/
+https://github.com/konsoletyper/teavm
+Copyright 2014 Alexey Andreev and TeaVM contributors.
+Apache License, Version 2.0. See TEAVM-LICENSE.txt.
+The generated JavaScript includes TeaVM runtime and Java class-library support.
+
+Gradle 9.4.1 / Gradle Wrapper
+https://gradle.org/
+Copyright Gradle, Inc. and contributors.
+Apache License, Version 2.0. See TEAVM-LICENSE.txt for the license text.
+The wrapper scripts include their original copyright and license notices.
+Gradle's distribution contains its additional third-party notices.
+
+ASM 9.9 (build-time dependency only)
+https://asm.ow2.io/
+Copyright INRIA, France Telecom and ASM contributors.
+BSD-3-Clause. It is resolved as a build dependency and is not included in
+the browser game. Its artifact contains its applicable license notices.
+
+Original game, graphics, story, maps and melodies are not covered by these
+open-source licenses. Their applicable permission is in licence.txt.
+
+Playwright 1.56.1 (development tests only)
+https://playwright.dev/
+Copyright Microsoft Corporation.
+Apache License, Version 2.0. Not included in the browser game.

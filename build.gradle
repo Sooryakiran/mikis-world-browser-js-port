@@ -1,0 +1,50 @@
+plugins {
+    id 'java'
+    id 'org.teavm' version '0.16.0'
+}
+
+repositories { mavenCentral() }
+
+configurations { portTools }
+dependencies {
+    implementation files(layout.buildDirectory.dir('original-classes'))
+    implementation 'org.teavm:teavm-jso:0.16.0'
+    implementation 'org.teavm:teavm-jso-apis:0.16.0'
+    portTools 'org.ow2.asm:asm-tree:9.9'
+}
+
+sourceSets.main.java.srcDirs = ['java']
+
+tasks.register('compilePortTools', JavaCompile) {
+    source = fileTree('tools') { include '*.java' }
+    classpath = configurations.portTools
+    destinationDirectory = layout.buildDirectory.dir('port-tools')
+    options.release = 17
+}
+
+tasks.register('prepareOriginal', JavaExec) {
+    dependsOn 'compilePortTools'
+    classpath = files(tasks.named('compilePortTools').map { it.destinationDirectory }) + configurations.portTools
+    mainClass = 'PrepareOriginal'
+    args file('jar/Mikis_World_1.jar'), layout.buildDirectory.dir('original-classes').get().asFile,
+         file('public/original')
+    inputs.file('jar/Mikis_World_1.jar')
+    inputs.dir('tools')
+    outputs.dir(layout.buildDirectory.dir('original-classes'))
+    outputs.dir('public/original')
+}
+
+compileJava {
+    dependsOn 'prepareOriginal'
+    options.release = 17
+}
+
+teavm.js {
+    mainClass = 'BrowserGame'
+    outputDir = file('public/generated')
+    relativePathInOutputDir = ''
+    targetFileName = 'game.js'
+    moduleType = org.teavm.gradle.api.JSModuleType.ES2015
+    obfuscated = false
+    strict = true
+}

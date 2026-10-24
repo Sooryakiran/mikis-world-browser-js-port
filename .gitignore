@@ -1,0 +1,8 @@
+.gradle/
+build/
+node_modules/
+public/generated/
+public/original/
+test-results/
+playwright-report/
+licence.txt
