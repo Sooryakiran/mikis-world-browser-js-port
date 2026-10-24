@@ -3,7 +3,6 @@ build/
 node_modules/
 public/generated/
 public/original/
-dist/
 test-results/
 playwright-report/
 licence.txt
