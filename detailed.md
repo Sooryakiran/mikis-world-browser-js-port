@@ -700,34 +700,122 @@ browser hot-module replacement. Generated output should never be edited manually
 
 ### Static deployment
 
-For this project, create a ready-to-upload static site with:
+#### Package: create the deployable website
+
+Run this from the project directory:
 
 ```sh
 npm run package
 ```
 
-This runs the JavaScript build first, then [package.mjs](package.mjs) assembles
-`dist/`. It replaces previous generated deployment output, so do not keep
-hand-maintained files there. Build failures or missing required inputs leave
-the previous package intact.
+The command performs two steps in order:
 
-Run `npm run preview` to serve that existing package at
-<http://127.0.0.1:4175>. It serves only `dist/` and neither rebuilds nor falls
-back to source files; re-run `npm run package` to include changes. An absent or
-incomplete package produces a startup error. `PORT` overrides the preview port.
+1. `npm run build` compiles the original game through Gradle and TeaVM. This
+   requires the build-time JDK/toolchain described in section 8. Gradle can reuse
+   up-to-date outputs.
+2. `node package.mjs` checks the required inputs and assembles the static site
+   in `dist/`.
 
-For authorized distribution, publish the contents of `dist/`, which contains:
+[package.mjs](package.mjs) copies the browser-facing HTML, CSS, and JavaScript,
+maps `public/generated/` to `dist/generated/`, maps `public/original/` to
+`dist/original/`, and includes the game and third-party licenses/notices.
+Files are copied without changing their contents; current speed and pitch
+settings are included as part of the copied browser code.
+
+The resulting layout is:
 
 ```text
-index.html
-style.css
-app.js
-browser-platform.js
-ott.js
-generated/
-original/
-required game and third-party notices/licenses
+dist/
+|-- index.html
+|-- style.css
+|-- app.js
+|-- browser-platform.js
+|-- ott.js
+|-- generated/
+|   `-- game.js
+|-- original/
+|   |-- manifest.json
+|   `-- ...original game resources
+|-- licence.txt
+|-- TEAVM-LICENSE.txt
+`-- THIRD-PARTY-NOTICES.txt
 ```
+
+The original JAR, Java sources, build caches, Node server, packaging script,
+tests, and development dependencies are not part of the deployment.
+
+Packaging replaces the previous `dist/`, removing stale output. Do not keep
+hand-maintained files there. A failed build or a missing required input detected
+before copying leaves the previous package intact. A later copy/filesystem error
+can leave partial output; resolve the error and rerun packaging before deployment.
+
+Packaging creates a directory, not a ZIP archive, and does not start a server.
+
+#### Preview: serve the existing package locally
+
+After packaging, run:
+
+```sh
+npm run preview
+```
+
+Open <http://127.0.0.1:4175>. The command runs
+`node server.mjs --preview` and serves the files from `dist/` on localhost.
+Leave the terminal running while playing; press **Ctrl+C** to stop the server.
+
+Preview deliberately:
+
+- Does not compile Java, run Gradle, or rebuild the package.
+- Does not watch source files or provide browser hot reload.
+- Does not use development files when a packaged file is missing.
+- Checks for `dist/index.html`, `dist/generated/game.js`, and
+  `dist/original/manifest.json` before listening. If a required entry file is
+  absent or unreadable, it exits with instructions to run `npm run package`.
+
+It needs Node.js to run this local helper, but no JDK or Gradle. The deployed
+static website does not require a Node.js backend.
+
+Use `PORT` if the default preview port is occupied:
+
+```sh
+PORT=4176 npm run preview
+```
+
+Then open <http://127.0.0.1:4176>. Do not stop an unrelated process just to
+free the default port.
+
+#### Typical edit, package, and preview workflow
+
+```sh
+# Create or refresh the deployable files.
+npm run package
+
+# Serve the packaged version, not the development sources.
+npm run preview
+```
+
+After editing source files, rerun `npm run package` and refresh the preview page.
+Preview serves the current files in `dist/`, so a successful repackage does not
+normally require restarting the preview server. Avoid loading the page while
+packaging is replacing the directory.
+
+| Command | Purpose | Served files | Default URL |
+| --- | --- | --- | --- |
+| `npm run dev` | Development server with Node server-code watching | Root frontend files plus mapped `public/` resources | `http://127.0.0.1:4173` |
+| `npm start` | Development file server without watching | Same source/resource layout as dev | `http://127.0.0.1:4173` |
+| `npm run build` | Compile/extract game outputs | Does not start a server or assemble the full site | None |
+| `npm run package` | Build and assemble the complete static website | Writes `dist/`; does not start a server | None |
+| `npm run preview` | Inspect the existing deployment package | Only `dist/` | `http://127.0.0.1:4175` |
+
+Development and preview can run side by side on their default ports. Browser
+saves are origin-specific, so scores/settings from port `4173` do not
+automatically appear on port `4175`.
+
+#### Publish the package
+
+For authorized distribution, publish **the contents of `dist/`** to the root
+of an HTTPS static site. No Java or Node.js server is required by the game in
+production. Keep the included license and attribution files accessible.
 
 The packaging command maps the source public directories to those deployment
 paths, matching the local server's URLs. Upload the contents of `dist/`, not the
