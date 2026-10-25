@@ -15,6 +15,7 @@ const notice = document.querySelector("#notice");
 const pressed = new Map();
 let platform;
 let started = false;
+let atTitle = true;
 let paused = false;
 let failed = false;
 let last = 0;
@@ -122,20 +123,27 @@ play.addEventListener("click", async () => {
   }
   play.disabled = true;
   try {
-    await platform.unlockAudio();
-    const { main } = await import("/generated/game.js");
-    overlay.hidden = true;
-    main([]);
-    if (failed) return;
-    if (!platform.callbacks || platform.exited) throw new Error("Original game failed during initialization.");
+    if (!started) {
+      await platform.unlockAudio();
+      const { main } = await import("/generated/game.js");
+      main([]);
+      if (failed) return;
+      if (!platform.callbacks || platform.exited) throw new Error("Original game failed during initialization.");
+      platform.step();
+      if (failed) return;
+      platform.resetTiming();
+      last = 0;
+      started = true;
+      pause.disabled = restart.disabled = false;
+      document.querySelector("#overlay-copy").textContent = "The original adventure. Start when you're ready.";
+      play.textContent = "Start game";
+      play.disabled = false;
+      play.focus({ preventScroll: true });
+      return;
+    }
     const newGame = [...document.querySelectorAll("#commands button")].find(button => button.textContent === "New game");
     if (!newGame) throw new Error("The original New game command is unavailable.");
     newGame.click();
-    platform.resetTiming();
-    last = 0;
-    started = true;
-    stage.dataset.started = "true";
-    pause.disabled = restart.disabled = false;
     canvas.focus({ preventScroll: true });
   } catch (error) { fail(error); }
 });
@@ -143,18 +151,29 @@ pause.addEventListener("click", togglePause);
 restart.addEventListener("click", () => location.reload());
 menuToggle.addEventListener("click", () => setMenu(menu.hidden));
 document.querySelector("#commands").addEventListener("click", event => {
-  if (event.target.closest("button")) setMenu(false);
+  const button = event.target.closest("button");
+  if (!button) return;
+  if (!failed && !platform.exited && ["New game", "Continue game"].includes(button.textContent)) {
+    atTitle = false;
+    overlay.hidden = true;
+    stage.dataset.started = "true";
+    platform.resetTiming();
+    last = 0;
+  }
+  setMenu(false);
 });
 document.addEventListener("pointerdown", event => {
   if (!menu.hidden && !menu.contains(event.target) && !document.querySelector("#toolbar").contains(event.target)) setMenu(false);
 });
 canvas.addEventListener("game-screen-change", event => {
   stage.dataset.screen = event.detail.kind === 0 ? "game" : "form";
+  if (started && atTitle && !failed) overlay.hidden = event.detail.kind !== 0;
   if (event.detail.kind !== 0) setMenu(false);
 });
 canvas.addEventListener("game-exited", () => {
   setMenu(false);
   started = false;
+  atTitle = false;
   stage.dataset.started = "false";
   pause.disabled = true;
   pauseIndicator.hidden = true;
@@ -244,7 +263,7 @@ async function load() {
     const ctx = canvas.getContext("2d");
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(platform.surfaces[platform.image("/title.png")], 0, 0);
-    play.textContent = "Start game";
+    play.textContent = "Enable audio";
     play.disabled = false;
     if (document.activeElement === document.body) play.focus({ preventScroll: true });
     status.textContent = "Original JAR resources verified. Ready to play.";

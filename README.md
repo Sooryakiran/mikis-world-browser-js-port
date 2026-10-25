@@ -27,7 +27,11 @@ npm start
 ```
 
 Open <http://127.0.0.1:4173>. The original title fills the window immediately;
-press **Start game** to enable browser audio and begin the original story.
+press **Enable audio** to hear the original title/splash melody. The title stays
+on screen until you press **Start game** (or choose Menu > New game), which begins
+the original story. This separate audio-unlock step is required by browser
+autoplay rules; it no longer skips the title music. If the original Sound setting
+was saved as off, turn it on in Menu to hear the music.
 There is no surrounding website layout. The original aspect ratio is preserved
 with letterboxing rather than stretching or cropping.
 `PORT` changes the server port. The server binds to localhost.

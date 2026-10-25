@@ -244,7 +244,7 @@ export class BrowserPlatform {
   playSound(handle, count) {
     const tune = decodeOtt(this.sounds[handle]);
     this.stopSound(handle);
-    if (!this.audio || this.audio.state !== "running") throw new Error("Audio is locked. Use Start original game to enable sound.");
+    if (!this.audio || this.audio.state !== "running") throw new Error("Audio is locked. Use Enable audio to enable sound.");
     for (const other of this.playing.keys()) this.stopSound(other);
     const playing = { nodes: new Set(), timer: null };
     this.playing.set(handle, playing);

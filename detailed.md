@@ -417,8 +417,10 @@ For another game, change the JAR input, entry point, adaptations, and needed
 compatibility APIs. Simply replacing the JAR path is insufficient.
 
 Also replace application-level assumptions: this app draws `/title.png` before
-initialization, finds an original command with the exact label `New game`, and
-automatically invokes it after the startup click. Another title may use different
+initialization. **Enable audio** initializes the original game and lets its
+title/splash melody play without immediately selecting New game. A separate
+**Start game** click invokes the original command with the exact label `New game`;
+the same command remains available in Menu. Another title may use different
 resources, language, commands, or startup behavior.
 
 When compilation fails, identify the first missing or incompatible platform
@@ -618,6 +620,10 @@ duration, and timbre with a reference rather than lowering an octave by guess.
 ### Browser-specific requirements
 
 - Create/resume audio from a click or tap because autoplay is restricted.
+- Let the original title screen run after that gesture instead of immediately
+  selecting New game. This game's title tune starts during its first update;
+  jumping straight to the story bypasses it. The player can listen on the title
+  screen and then press Start game. Honor the original saved Sound setting.
 - Schedule note boundaries using the audio clock, not a `setTimeout` per note.
 - Preserve the original game's stop, interruption, and repeat behavior.
 - Cancel repeat timers and disconnect nodes when sounds end or stop.

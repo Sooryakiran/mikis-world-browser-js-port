@@ -1,10 +1,16 @@
 import { test, expect } from "@playwright/test";
 import { PLAYBACK_RATE, SOUND_PITCH_SEMITONES } from "../browser-platform.js";
 
-async function start(page) {
+async function enterTitle(page) {
   await page.goto("/");
-  await page.getByRole("button", { name: "Start game", exact: true }).click();
+  await page.getByRole("button", { name: "Enable audio", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Start game", exact: true })).toBeEnabled();
   await expect(page.locator("#pause")).toBeEnabled();
+}
+
+async function start(page) {
+  await enterTitle(page);
+  await page.getByRole("button", { name: "Start game", exact: true }).click();
   await expect.poll(() => page.evaluate(() => JSON.parse(mikiPlatform.callbacks.inspect())[0])).toBe(20);
 }
 
@@ -37,7 +43,7 @@ async function expectViewportGame(page) {
 
 test("the title fills the viewport immediately, with only top-right controls", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "Start game", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Enable audio", exact: true })).toBeEnabled();
   await expectViewportGame(page);
   await expect(page.locator("#game-menu")).toBeHidden();
   await expect(page.locator("header, footer, .intro, .console")).toHaveCount(0);
@@ -47,7 +53,65 @@ test("the title fills the viewport immediately, with only top-right controls", a
   await expect(page.getByRole("link", { name: "Game license", exact: true })).toBeVisible();
 });
 
-test("one click starts the original story, and controls and original menus still work", async ({ page }) => {
+test("enabling audio plays the original title melody until Start game is selected", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Enable audio", exact: true })).toBeEnabled();
+  expect(await page.evaluate(() => mikiPlatform.audio)).toBeNull();
+  await page.getByRole("button", { name: "Enable audio", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Start game", exact: true })).toBeEnabled();
+  await expect(page.locator("#overlay")).toBeVisible();
+  await expect(page.locator(".touch-controls")).toBeHidden();
+  const title = await page.evaluate(async () => {
+    const { decodeOtt } = await import("/ott.js");
+    const active = [...mikiPlatform.playing].find(([handle]) => decodeOtt(mikiPlatform.sounds[handle]).title === "title");
+    if (!active) throw new Error("Original title melody was not started");
+    globalThis.titleAudioAnalyser = mikiPlatform.audio.createAnalyser();
+    titleAudioAnalyser.fftSize = 256;
+    for (const { gain } of active[1].nodes) gain.connect(titleAudioAnalyser);
+    return { title: decodeOtt(mikiPlatform.sounds[active[0]]).title, audio: mikiPlatform.audio.state };
+  });
+  expect(title).toEqual({ title: "title", audio: "running" });
+  await expect.poll(() => page.evaluate(() => {
+    const samples = new Float32Array(titleAudioAnalyser.fftSize);
+    titleAudioAnalyser.getFloatTimeDomainData(samples);
+    return samples.some(value => Math.abs(value) > 0.0001);
+  })).toBe(true);
+  await page.waitForTimeout(250);
+  await expect(page.locator("#overlay")).toBeVisible();
+  await page.getByRole("button", { name: "Start game", exact: true }).click();
+  await expect(page.locator("#overlay")).toBeHidden();
+  await expect.poll(() => page.evaluate(() => JSON.parse(mikiPlatform.callbacks.inspect())[0])).toBe(20);
+  await expect(page.getByRole("button", { name: "Jump", exact: true })).toBeVisible();
+  expect(await page.evaluate(async () => {
+    const { decodeOtt } = await import("/ott.js");
+    return [...mikiPlatform.playing.keys()].some(handle => decodeOtt(mikiPlatform.sounds[handle]).title === "title");
+  })).toBe(false);
+});
+
+test("title-screen forms return to Start game without skipping the title", async ({ page }) => {
+  await enterTitle(page);
+  await openMenu(page);
+  await page.getByRole("button", { name: "Instructions", exact: true }).click();
+  await expect(page.locator("#native-menu")).toBeVisible();
+  await expect(page.locator("#overlay")).toBeHidden();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(page.locator("#native-menu")).toBeHidden();
+  await expect(page.getByRole("button", { name: "Start game", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Start game", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => JSON.parse(mikiPlatform.callbacks.inspect())[0])).toBe(20);
+});
+
+test("the original New game menu command also leaves the title overlay", async ({ page }) => {
+  await enterTitle(page);
+  await openMenu(page);
+  await page.getByRole("button", { name: "New game", exact: true }).click();
+  await expect(page.locator("#overlay")).toBeHidden();
+  await expect(page.locator("#game-menu")).toBeHidden();
+  await expect.poll(() => page.evaluate(() => JSON.parse(mikiPlatform.callbacks.inspect())[0])).toBe(20);
+});
+
+test("Start game begins the original story, and controls and original menus still work", async ({ page }) => {
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
   await start(page);
@@ -134,10 +198,13 @@ test("settings survive reload and touch controls fit portrait and landscape", as
   await expect(page.getByRole("button", { name: "Jump", exact: true })).toBeVisible();
   await openMenu(page);
   await page.getByRole("button", { name: "Sound: on", exact: true }).click();
-  await start(page);
+  await enterTitle(page);
+  expect(await page.evaluate(() => mikiPlatform.playing.size)).toBe(0);
   await openMenu(page);
   await expect(page.getByRole("button", { name: "Sound: off", exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Start game", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => JSON.parse(mikiPlatform.callbacks.inspect())[0])).toBe(20);
   await page.getByRole("button", { name: "Skip animation", exact: true }).click();
   await expect.poll(() => page.evaluate(() => JSON.parse(mikiPlatform.callbacks.inspect())[0])).toBe(0);
   await page.setViewportSize({ width: 844, height: 390 });
@@ -178,6 +245,6 @@ test("the original Exit command provides a way back to the immersive title", asy
   await expect(page.locator("#overlay")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Thanks for playing", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Return to title", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Start game", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Enable audio", exact: true })).toBeEnabled();
   await expectViewportGame(page);
 });
